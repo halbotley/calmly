@@ -10,6 +10,13 @@ AppleScript hangs. ICS imports pop up dialogs. `icalBuddy` is read-only. Sometim
 
 ## Installation
 
+### Homebrew
+
+```bash
+brew tap halbotley/tap
+brew install calmly
+```
+
 ### From Source
 
 ```bash
@@ -21,8 +28,8 @@ cd calmly
 ### Manual Build
 
 ```bash
-swiftc -O -o calmly Sources/calmly.swift
-sudo cp calmly /usr/local/bin/
+swift build -c release
+sudo cp .build/release/calmly /usr/local/bin/
 ```
 
 ## Usage
@@ -40,6 +47,10 @@ calmly add Work "Day Off" 2025-03-15
 
 # Add a multi-day event
 calmly add Family "Vacation" 2025-07-01 2025-07-14
+
+# Add a timed event (new in v1.1.0)
+calmly addtimed Work "Meeting" 2025-03-15 09:00 10:30
+calmly addtimed Kids "Swim Practice" 2025-02-03 07:00 08:30
 ```
 
 ## First Run
@@ -56,6 +67,10 @@ This only happens once. After that, `calmly` runs silently.
 # Add school holidays to a kid's calendar
 calmly add Kids "Spring Break" 2025-03-24 2025-03-28
 calmly add Kids "No School - Teacher Day" 2025-02-17
+
+# Add recurring swim practice
+calmly addtimed Kids "AM Swim Practice" 2025-02-03 07:00 08:30
+calmly addtimed Kids "PM Swim Practice" 2025-02-03 14:30 16:00
 
 # Check what's coming up at work
 calmly events Work 7

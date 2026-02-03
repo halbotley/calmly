@@ -6,7 +6,7 @@
 import EventKit
 import Foundation
 
-let version = "1.0.0"
+let version = "1.1.0"
 let store = EKEventStore()
 
 // Request access synchronously
@@ -51,6 +51,8 @@ func printUsage() {
       events <calendar> [days]          Show events (default: 30 days ahead)
       add <calendar> <title> <date> [end_date]
                                         Add an all-day event (dates: YYYY-MM-DD)
+      addtimed <calendar> <title> <date> <start_time> <end_time>
+                                        Add a timed event (date: YYYY-MM-DD, times: HH:MM)
       version                           Show version
     
     Examples:
@@ -58,8 +60,10 @@ func printUsage() {
       calmly events Work 14
       calmly add Family "Vacation" 2025-07-01 2025-07-14
       calmly add Work "Day Off" 2025-03-15
+      calmly addtimed Conrad "Swim Practice" 2025-02-03 07:00 08:30
     
-    Dates are in YYYY-MM-DD format. Multi-day events span from start to end (inclusive).
+    Dates are in YYYY-MM-DD format. Times are in 24-hour HH:MM format.
+    Multi-day events span from start to end (inclusive).
     """)
 }
 
@@ -107,6 +111,9 @@ case "events":
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd"
     
+    let timeFormatter = DateFormatter()
+    timeFormatter.dateFormat = "HH:mm"
+    
     if events.isEmpty {
         print("No events in '\(calName)' for the next \(days) days.")
     } else {
@@ -116,15 +123,14 @@ case "events":
                 if let endDate = event.endDate, 
                    Calendar.current.dateComponents([.day], from: event.startDate, to: endDate).day ?? 0 > 1 {
                     let endStr = formatter.string(from: Calendar.current.date(byAdding: .day, value: -1, to: endDate)!)
-                    print("\(startStr) → \(endStr): \(event.title ?? "Untitled")")
+                    print("\(startStr) → \(endStr): \(event.title ?? "Untitled") (all day)")
                 } else {
-                    print("\(startStr): \(event.title ?? "Untitled")")
+                    print("\(startStr): \(event.title ?? "Untitled") (all day)")
                 }
             } else {
-                let timeFormatter = DateFormatter()
-                timeFormatter.dateFormat = "HH:mm"
-                let timeStr = timeFormatter.string(from: event.startDate)
-                print("\(startStr) \(timeStr): \(event.title ?? "Untitled")")
+                let startTime = timeFormatter.string(from: event.startDate)
+                let endTime = timeFormatter.string(from: event.endDate)
+                print("\(startStr): \(event.title ?? "Untitled") (\(startTime)-\(endTime))")
             }
         }
     }
@@ -176,6 +182,54 @@ case "add":
         } else {
             print("✓ Created '\(title)' from \(startDateStr) to \(endDateStr) in \(calendar.title)")
         }
+    } catch {
+        fputs("Failed to create event: \(error.localizedDescription)\n", stderr)
+        exit(1)
+    }
+
+case "addtimed":
+    guard args.count >= 7 else {
+        fputs("Usage: calmly addtimed <calendar> <title> <date> <start_time> <end_time>\n", stderr)
+        fputs("Date: YYYY-MM-DD, Times: HH:MM (24-hour format)\n", stderr)
+        exit(1)
+    }
+    let calName = args[2]
+    let title = args[3]
+    let dateStr = args[4]
+    let startTimeStr = args[5]
+    let endTimeStr = args[6]
+    
+    guard let calendar = store.calendars(for: .event).first(where: { $0.title.lowercased() == calName.lowercased() }) else {
+        fputs("Calendar '\(calName)' not found. Run 'calmly list' to see available calendars.\n", stderr)
+        exit(1)
+    }
+    
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd HH:mm"
+    formatter.timeZone = TimeZone.current
+    
+    guard let startDate = formatter.date(from: "\(dateStr) \(startTimeStr)") else {
+        fputs("Invalid start datetime: \(dateStr) \(startTimeStr). Use YYYY-MM-DD and HH:MM formats.\n", stderr)
+        exit(1)
+    }
+    
+    guard let endDate = formatter.date(from: "\(dateStr) \(endTimeStr)") else {
+        fputs("Invalid end datetime: \(dateStr) \(endTimeStr). Use YYYY-MM-DD and HH:MM formats.\n", stderr)
+        exit(1)
+    }
+    
+    let event = EKEvent(eventStore: store)
+    event.title = title
+    event.startDate = startDate
+    event.endDate = endDate
+    event.isAllDay = false
+    event.calendar = calendar
+    
+    do {
+        try store.save(event, span: .thisEvent)
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "HH:mm"
+        print("✓ Created '\(title)' on \(dateStr) \(timeFormatter.string(from: startDate))-\(timeFormatter.string(from: endDate)) in \(calendar.title)")
     } catch {
         fputs("Failed to create event: \(error.localizedDescription)\n", stderr)
         exit(1)
