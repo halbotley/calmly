@@ -1,0 +1,66 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "PackageStructure": ["<PackageStructure>"]
+  "calmly-arm64-apple-macosx26.0-release.exe": ["<calmly-arm64-apple-macosx26.0-release.exe>"]
+  "calmly-arm64-apple-macosx26.0-release.module": ["<calmly-arm64-apple-macosx26.0-release.module>"]
+  "main": ["<calmly-arm64-apple-macosx26.0-release.exe>","<calmly-arm64-apple-macosx26.0-release.module>"]
+  "test": ["<calmly-arm64-apple-macosx26.0-release.exe>","<calmly-arm64-apple-macosx26.0-release.module>"]
+default: "main"
+nodes:
+  "/Users/halbotley/Projects/calmly/Sources/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/Users/halbotley/Projects/calmly/Sources/calmly.swift"]
+    outputs: ["/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.build/sources"]
+    description: "Write auxiliary file /Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.build/sources"
+
+  "/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.build/calmly.swift.o"]
+    outputs: ["/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.product/Objects.LinkFileList"
+
+  "/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/Library/Developer/CommandLineTools/usr/bin/swiftc"]
+    outputs: ["/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
+
+  "<calmly-arm64-apple-macosx26.0-release.exe>":
+    tool: phony
+    inputs: ["/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly"]
+    outputs: ["<calmly-arm64-apple-macosx26.0-release.exe>"]
+
+  "<calmly-arm64-apple-macosx26.0-release.module>":
+    tool: phony
+    inputs: ["/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.build/calmly.swift.o","/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/Modules/calmly.swiftmodule"]
+    outputs: ["<calmly-arm64-apple-macosx26.0-release.module>"]
+
+  "C.calmly-arm64-apple-macosx26.0-release.exe":
+    tool: shell
+    inputs: ["/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.build/calmly.swift.o","/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.product/Objects.LinkFileList"]
+    outputs: ["/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly"]
+    description: "Linking ./.build/arm64-apple-macosx/release/calmly"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-L","/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release","-o","/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly","-module-name","calmly","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-dead_strip","-Xlinker","-alias","-Xlinker","_calmly_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.product/Objects.LinkFileList","-Xlinker","-rpath","-Xlinker","/Library/Developer/CommandLineTools/usr/lib/swift-6.2/macosx","-target","arm64-apple-macosx13.0","-I","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-L","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-plugin-path","/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g"]
+
+  "C.calmly-arm64-apple-macosx26.0-release.module":
+    tool: shell
+    inputs: ["/Users/halbotley/Projects/calmly/Sources/calmly.swift","/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt","/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.build/sources"]
+    outputs: ["/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.build/calmly.swift.o","/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/Modules/calmly.swiftmodule"]
+    description: "Compiling Swift Module 'calmly' (1 sources)"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-module-name","calmly","-emit-dependencies","-emit-module","-emit-module-path","/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/Modules/calmly.swiftmodule","-output-file-map","/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.build/output-file-map.json","-whole-module-optimization","-num-threads","10","-c","@/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/calmly.build/sources","-I","/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/Modules","-target","arm64-apple-macosx13.0","-whole-module-optimization","-num-threads","10","-serialize-diagnostics","-O","-j10","-DSWIFT_PACKAGE","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/Users/halbotley/Projects/calmly/.build/arm64-apple-macosx/release/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","calmly_main","-swift-version","5","-I","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-L","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-plugin-path","/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g","-Xcc","-isysroot","-Xcc","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-Xcc","-fPIC","-Xcc","-g","-package-name","calmly"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/halbotley/Projects/calmly/Sources/","/Users/halbotley/Projects/calmly/Package.swift","/Users/halbotley/Projects/calmly/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+
