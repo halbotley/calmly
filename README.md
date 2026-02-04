@@ -48,9 +48,12 @@ calmly add Work "Day Off" 2025-03-15
 # Add a multi-day event
 calmly add Family "Vacation" 2025-07-01 2025-07-14
 
-# Add a timed event (new in v1.1.0)
+# Add a timed event
 calmly addtimed Work "Meeting" 2025-03-15 09:00 10:30
 calmly addtimed Kids "Swim Practice" 2025-02-03 07:00 08:30
+
+# Delete an event by calendar, title, and date
+calmly delete Work "Meeting" 2025-03-15
 ```
 
 ## First Run
