@@ -6,7 +6,7 @@
 import EventKit
 import Foundation
 
-let version = "1.1.0"
+let version = "1.2.0"
 let store = EKEventStore()
 
 // Request access synchronously
@@ -53,6 +53,7 @@ func printUsage() {
                                         Add an all-day event (dates: YYYY-MM-DD)
       addtimed <calendar> <title> <date> <start_time> <end_time>
                                         Add a timed event (date: YYYY-MM-DD, times: HH:MM)
+      delete <calendar> <title> <date>  Delete an event by title and date
       version                           Show version
     
     Examples:
@@ -232,6 +233,62 @@ case "addtimed":
         print("✓ Created '\(title)' on \(dateStr) \(timeFormatter.string(from: startDate))-\(timeFormatter.string(from: endDate)) in \(calendar.title)")
     } catch {
         fputs("Failed to create event: \(error.localizedDescription)\n", stderr)
+        exit(1)
+    }
+
+case "delete":
+    guard args.count >= 5 else {
+        fputs("Usage: calmly delete <calendar> <title> <date>\n", stderr)
+        fputs("Date should be YYYY-MM-DD format.\n", stderr)
+        exit(1)
+    }
+    let calName = args[2]
+    let title = args[3]
+    let dateStr = args[4]
+    
+    guard let calendar = store.calendars(for: .event).first(where: { $0.title.lowercased() == calName.lowercased() }) else {
+        fputs("Calendar '\(calName)' not found. Run 'calmly list' to see available calendars.\n", stderr)
+        exit(1)
+    }
+    
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    formatter.timeZone = TimeZone.current
+    
+    guard let targetDate = formatter.date(from: dateStr) else {
+        fputs("Invalid date: \(dateStr). Use YYYY-MM-DD format.\n", stderr)
+        exit(1)
+    }
+    
+    // Search events on that day
+    let startOfDay = Calendar.current.startOfDay(for: targetDate)
+    let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
+    let predicate = store.predicateForEvents(withStart: startOfDay, end: endOfDay, calendars: [calendar])
+    let events = store.events(matching: predicate)
+    
+    // Find matching event by title (case-insensitive)
+    let matching = events.filter { ($0.title ?? "").lowercased() == title.lowercased() }
+    
+    if matching.isEmpty {
+        fputs("No event '\(title)' found on \(dateStr) in \(calendar.title).\n", stderr)
+        exit(1)
+    }
+    
+    // Delete all matching events (usually just one)
+    var deleted = 0
+    for event in matching {
+        do {
+            try store.remove(event, span: .thisEvent)
+            deleted += 1
+        } catch {
+            fputs("Failed to delete event: \(error.localizedDescription)\n", stderr)
+        }
+    }
+    
+    if deleted > 0 {
+        print("✓ Deleted '\(title)' on \(dateStr) from \(calendar.title)")
+    } else {
+        fputs("Failed to delete any events.\n", stderr)
         exit(1)
     }
 
