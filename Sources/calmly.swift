@@ -6,7 +6,7 @@
 import EventKit
 import Foundation
 
-let version = "1.2.0"
+let version = "1.3.0"
 let store = EKEventStore()
 
 // Request access synchronously
@@ -54,6 +54,8 @@ func printUsage() {
       addtimed <calendar> <title> <date> <start_time> <end_time>
                                         Add a timed event (date: YYYY-MM-DD, times: HH:MM)
       delete <calendar> <title> <date>  Delete an event by title and date
+      edit <calendar> <title> <date> --title "new title"
+                                        Rename an event
       version                           Show version
     
     Examples:
@@ -62,6 +64,7 @@ func printUsage() {
       calmly add Family "Vacation" 2025-07-01 2025-07-14
       calmly add Work "Day Off" 2025-03-15
       calmly addtimed Conrad "Swim Practice" 2025-02-03 07:00 08:30
+      calmly edit Conrad "Swim Practice" 2025-02-03 --title "C: 🏊 Swim Practice"
     
     Dates are in YYYY-MM-DD format. Times are in 24-hour HH:MM format.
     Multi-day events span from start to end (inclusive).
@@ -289,6 +292,83 @@ case "delete":
         print("✓ Deleted '\(title)' on \(dateStr) from \(calendar.title)")
     } else {
         fputs("Failed to delete any events.\n", stderr)
+        exit(1)
+    }
+
+case "edit":
+    // Parse: calmly edit <calendar> <title> <date> --title "new title"
+    guard args.count >= 5 else {
+        fputs("Usage: calmly edit <calendar> <title> <date> --title \"new title\"\n", stderr)
+        fputs("Date should be YYYY-MM-DD format.\n", stderr)
+        exit(1)
+    }
+    let calName = args[2]
+    let title = args[3]
+    let dateStr = args[4]
+    
+    // Parse --title flag
+    var newTitle: String? = nil
+    var i = 5
+    while i < args.count {
+        if args[i] == "--title" && i + 1 < args.count {
+            newTitle = args[i + 1]
+            i += 2
+        } else {
+            i += 1
+        }
+    }
+    
+    guard newTitle != nil else {
+        fputs("No changes specified. Use --title \"new title\" to rename.\n", stderr)
+        exit(1)
+    }
+    
+    guard let calendar = store.calendars(for: .event).first(where: { $0.title.lowercased() == calName.lowercased() }) else {
+        fputs("Calendar '\(calName)' not found. Run 'calmly list' to see available calendars.\n", stderr)
+        exit(1)
+    }
+    
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    formatter.timeZone = TimeZone.current
+    
+    guard let targetDate = formatter.date(from: dateStr) else {
+        fputs("Invalid date: \(dateStr). Use YYYY-MM-DD format.\n", stderr)
+        exit(1)
+    }
+    
+    // Search events on that day
+    let startOfDay = Calendar.current.startOfDay(for: targetDate)
+    let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
+    let predicate = store.predicateForEvents(withStart: startOfDay, end: endOfDay, calendars: [calendar])
+    let events = store.events(matching: predicate)
+    
+    // Find matching event by title (case-insensitive)
+    let matching = events.filter { ($0.title ?? "").lowercased() == title.lowercased() }
+    
+    if matching.isEmpty {
+        fputs("No event '\(title)' found on \(dateStr) in \(calendar.title).\n", stderr)
+        exit(1)
+    }
+    
+    // Edit all matching events (usually just one)
+    var edited = 0
+    for event in matching {
+        let oldTitle = event.title ?? "Untitled"
+        if let nt = newTitle {
+            event.title = nt
+        }
+        do {
+            try store.save(event, span: .thisEvent)
+            edited += 1
+            print("✓ Renamed '\(oldTitle)' → '\(event.title ?? "Untitled")' on \(dateStr)")
+        } catch {
+            fputs("Failed to edit event: \(error.localizedDescription)\n", stderr)
+        }
+    }
+    
+    if edited == 0 {
+        fputs("Failed to edit any events.\n", stderr)
         exit(1)
     }
 
