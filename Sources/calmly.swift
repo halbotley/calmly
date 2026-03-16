@@ -6,7 +6,7 @@
 import EventKit
 import Foundation
 
-let version = "1.3.0"
+let version = "1.4.0"
 let store = EKEventStore()
 
 // Request access synchronously
@@ -49,9 +49,9 @@ func printUsage() {
     Commands:
       list                              List all calendars
       events <calendar> [days]          Show events (default: 30 days ahead)
-      add <calendar> <title> <date> [end_date]
+      add <calendar> <title> <date> [end_date] [--notes "note"]
                                         Add an all-day event (dates: YYYY-MM-DD)
-      addtimed <calendar> <title> <date> <start_time> <end_time>
+      addtimed <calendar> <title> <date> <start_time> <end_time> [--notes "note"]
                                         Add a timed event (date: YYYY-MM-DD, times: HH:MM)
       delete <calendar> <title> <date>  Delete an event by title and date
       edit <calendar> <title> <date> --title "new title"
@@ -62,8 +62,8 @@ func printUsage() {
       calmly list
       calmly events Work 14
       calmly add Family "Vacation" 2025-07-01 2025-07-14
-      calmly add Work "Day Off" 2025-03-15
-      calmly addtimed Conrad "Swim Practice" 2025-02-03 07:00 08:30
+      calmly add Work "Day Off" 2025-03-15 --notes "Added by Hal"
+      calmly addtimed Conrad "Swim Practice" 2025-02-03 07:00 08:30 --notes "[rostered-sync]"
       calmly edit Conrad "Swim Practice" 2025-02-03 --title "C: 🏊 Swim Practice"
     
     Dates are in YYYY-MM-DD format. Times are in 24-hour HH:MM format.
@@ -141,14 +141,34 @@ case "events":
     
 case "add":
     guard args.count >= 5 else {
-        fputs("Usage: calmly add <calendar> <title> <start_date> [end_date]\n", stderr)
+        fputs("Usage: calmly add <calendar> <title> <start_date> [end_date] [--notes \"note\"]\n", stderr)
         fputs("Dates should be YYYY-MM-DD format.\n", stderr)
         exit(1)
     }
     let calName = args[2]
     let title = args[3]
     let startDateStr = args[4]
-    let endDateStr = args.count >= 6 ? args[5] : startDateStr
+
+    // Parse optional end_date and --notes flag
+    var endDateStr = startDateStr
+    var notes: String? = nil
+    var i = 5
+
+    // Check if args[5] is a date (not a flag) for end_date
+    if i < args.count && !args[i].hasPrefix("--") {
+        endDateStr = args[i]
+        i += 1
+    }
+
+    // Parse --notes flag
+    while i < args.count {
+        if args[i] == "--notes" && i + 1 < args.count {
+            notes = args[i + 1]
+            i += 2
+        } else {
+            i += 1
+        }
+    }
     
     guard let calendar = store.calendars(for: .event).first(where: { $0.title.lowercased() == calName.lowercased() }) else {
         fputs("Calendar '\(calName)' not found. Run 'calmly list' to see available calendars.\n", stderr)
@@ -178,6 +198,9 @@ case "add":
     event.endDate = endDate
     event.isAllDay = true
     event.calendar = calendar
+    if let notes = notes {
+        event.notes = notes
+    }
     
     do {
         try store.save(event, span: .thisEvent)
@@ -193,7 +216,7 @@ case "add":
 
 case "addtimed":
     guard args.count >= 7 else {
-        fputs("Usage: calmly addtimed <calendar> <title> <date> <start_time> <end_time>\n", stderr)
+        fputs("Usage: calmly addtimed <calendar> <title> <date> <start_time> <end_time> [--notes \"note\"]\n", stderr)
         fputs("Date: YYYY-MM-DD, Times: HH:MM (24-hour format)\n", stderr)
         exit(1)
     }
@@ -202,6 +225,18 @@ case "addtimed":
     let dateStr = args[4]
     let startTimeStr = args[5]
     let endTimeStr = args[6]
+
+    // Parse --notes flag
+    var notes: String? = nil
+    var i = 7
+    while i < args.count {
+        if args[i] == "--notes" && i + 1 < args.count {
+            notes = args[i + 1]
+            i += 2
+        } else {
+            i += 1
+        }
+    }
     
     guard let calendar = store.calendars(for: .event).first(where: { $0.title.lowercased() == calName.lowercased() }) else {
         fputs("Calendar '\(calName)' not found. Run 'calmly list' to see available calendars.\n", stderr)
@@ -228,6 +263,9 @@ case "addtimed":
     event.endDate = endDate
     event.isAllDay = false
     event.calendar = calendar
+    if let notes = notes {
+        event.notes = notes
+    }
     
     do {
         try store.save(event, span: .thisEvent)
